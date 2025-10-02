@@ -3,43 +3,87 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>بطاقة العامل</title>
+  <title>نظام تسجيل الحضور</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="card">
-    <img id="worker-img" src="https://via.placeholder.com/150" alt="صورة العامل" />
-    <h2 id="name">أحمد محمد</h2>
-    <p><strong>تاريخ الازدياد:</strong> <span id="dob">1990-05-15</span></p>
-    <p><strong>رقم الهاتف:</strong> <span id="phone">0612345678</span></p>
-    <p><strong>المهنة:</strong> <span id="job">فني صيانة</span></p>
-    <p><strong>توقيت العمل:</strong> 7:00 صباحًا – 3:00 مساءً</p>
-    <div id="qrcode"></div>
+  <header>
+    <h1>نظام تسجيل الحضور</h1>
+    <nav>
+      <button onclick="showSection('scanner')">المسح</button>
+      <button onclick="showSection('dashboard')">لوحة التحكم</button>
+      <button onclick="showSection('employees')">الموظفين</button>
+    </nav>
+  </header>
+
+  <!-- قسم المسح -->
+  <section id="scanner" class="section active">
+    <h2>مسح رمز QR</h2>
+    <div id="reader"></div>
+    <button id="start-scan">بدء المسح</button>
+    <button id="stop-scan" disabled>إيقاف المسح</button>
+    <div id="scan-result"></div>
+  </section>
+
+  <!-- لوحة التحكم -->
+  <section id="dashboard" class="section">
+    <h2>سجل الحضور اليوم</h2>
+    <div>
+      <label>اختر تاريخ: <input type="date" id="filter-date" /></label>
+      <button onclick="exportToCSV()">تصدير إلى CSV</button>
+    </div>
+    <table id="attendance-table">
+      <thead>
+        <tr>
+          <th>الاسم</th>
+          <th>الوقت</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-body"></tbody>
+    </table>
+  </section>
+
+  <!-- إدارة الموظفين -->
+  <section id="employees" class="section">
+    <h2>إدارة الموظفين</h2>
+    <button id="add-employee-btn">إضافة موظف</button>
+    <div id="employees-list"></div>
+  </section>
+
+  <!-- نافذة إضافة موظف -->
+  <div id="employee-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>إضافة موظف جديد</h3>
+      <form id="employee-form">
+        <input type="text" id="emp-id" placeholder="كود الموظف (فريد)" required />
+        <input type="text" id="first-name" placeholder="الاسم الأول" required />
+        <input type="text" id="last-name" placeholder="اسم العائلة" required />
+        <input type="date" id="dob" />
+        <input type="tel" id="phone" placeholder="رقم الهاتف" />
+        <input type="text" id="position" placeholder="المنصب" />
+        <input type="time" id="start-time" value="07:00" required />
+        <input type="time" id="end-time" value="15:00" required />
+        <button type="submit">حفظ</button>
+        <button type="button" class="cancel">إلغاء</button>
+      </form>
+    </div>
   </div>
 
+  <!-- نافذة عرض QR -->
+  <div id="qr-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>رمز QR</h3>
+      <div id="qr-code-container"></div>
+      <button id="download-qr">تحميل الرمز</button>
+    </div>
+  </div>
+
+  <!-- مكتبات خارجية -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script>
-    // بيانات العامل (يمكنك تعديلها لكل عامل)
-    const workerData = {
-      id: "W12345",
-      name: "أحمد محمد",
-      dob: "1990-05-15",
-      phone: "0612345678",
-      job: "فني صيانة"
-    };
-
-    document.getElementById("name").textContent = workerData.name;
-    document.getElementById("dob").textContent = workerData.dob;
-    document.getElementById("phone").textContent = workerData.phone;
-    document.getElementById("job").textContent = workerData.job;
-
-    // إنشاء QR Code يحتوي على بيانات العامل بصيغة JSON
-    const qrData = JSON.stringify(workerData);
-    new QRCode(document.getElementById("qrcode"), {
-      text: qrData,
-      width: 128,
-      height: 128
-    });
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
