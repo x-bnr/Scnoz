@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>مسح QR Code - تسجيل الحضور</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>مسح بطاقة العامل</h1>
+  <div id="reader"></div>
+  <div id="result"></div>
+  <button id="toggleCamera">إيقاف/تشغيل الكاميرا</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    let html5QrCode = null;
+    const resultDiv = document.getElementById("result");
+
+    function startScanner() {
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        (decodedText) => {
+          try {
+            const worker = JSON.parse(decodedText);
+            processAttendance(worker);
+            html5QrCode.stop().catch(err => console.log("Stop error:", err));
+          } catch (e) {
+            resultDiv.innerHTML = `<p style="color:red;">خطأ: QR غير صالح</p>`;
+          }
+        },
+        (errorMessage) => {
+          // لا حاجة لعرض أخطاء المسح
+        }
+      ).catch(err => {
+        resultDiv.innerHTML = `<p style="color:red;">فشل تشغيل الكاميرا</p>`;
+      });
+    }
+
+    function processAttendance(worker) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const dateStr = now.toLocaleDateString('ar-EG');
+
+      // توقيت العمل: من 7:00 إلى 15:00
+      const workStart = 7 * 60; // 7 صباحًا بالدقائق
+      const workEnd = 15 * 60;  // 3 مساءً بالدقائق
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      let status = "";
+      if (nowMinutes >= workStart && nowMinutes <= workEnd) {
+        status = "حاضر";
+      } else if (nowMinutes < workStart) {
+        status = "مبكر (قبل بدء العمل)";
+      } else {
+        status = "غائب (بعد انتهاء الدوام)";
+      }
+
+      // حفظ في localStorage
+      const record = {
+        workerId: worker.id,
+        name: worker.name,
+        dateTime: `${dateStr} ${timeStr}`,
+        status: status
+      };
+
+      // جلب السجلات السابقة
+      const logs = JSON.parse(localStorage.getItem("attendanceLogs") || "[]");
+      logs.push(record);
+      localStorage.setItem("attendanceLogs", JSON.stringify(logs));
+
+      resultDiv.innerHTML = `
+        <h3>تم تسجيل الحضور!</h3>
+        <p><strong>الاسم:</strong> ${worker.name}</p>
+        <p><strong>الوقت:</strong> ${record.dateTime}</p>
+        <p><strong>الحالة:</strong> <span style="color:${status === 'حاضر' ? 'green' : 'red'}">${status}</span></p>
+        <button onclick="window.location.reload()">مسح آخر</button>
+      `;
+    }
+
+    document.getElementById("toggleCamera").onclick = () => {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(console.error);
+      } else {
+        startScanner();
+      }
+    };
+
+    // بدء المسح تلقائيًا
+    window.onload = startScanner;
+  </script>
+</body>
+</html>
