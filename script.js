@@ -1,3 +1,5 @@
+let html5QrCode = null;
+const scanResultDiv = document.getElementById('scan-result');
 // ==========================
 // المتغيرات العامة
 // ==========================
@@ -30,15 +32,113 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ==========================
 // بدء المسح (زمني - يمكن تعديله لاستخدام الكاميرا لاحقًا)
 // ==========================
-document.getElementById('start-scan-btn').addEventListener('click', () => {
-  // في هذا الإصدار، نستخدم زر "بدء المسح" كمثال
-  // يمكنك ربطه بـ html5-qrcode لاحقًا
-  const resultDiv = document.getElementById('scan-result');
-  resultDiv.textContent = "تم تسجيل الحضور بنجاح!";
-  resultDiv.className = "scan-result show";
-  setTimeout(() => {
-    resultDiv.className = "scan-result";
-  }, 3000);
+function startScan() {
+  const readerDiv = document.getElementById('reader');
+  readerDiv.innerHTML = ""; // تنظيف أي محتوى سابق
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  html5QrCode.start(
+    { facingMode: "environment" }, // الكاميرا الخلفية
+    {
+      fps: 10,           // عدد الإطارات في الثانية
+      qrbox: 250         // حجم المربع المحدد للمسح
+    },
+    (decodedText) => {
+      // عند مسح QR بنجاح
+      handleAttendance(decodedText);
+      stopScan(); // إيقاف التلقائي بعد المسح
+    },
+    (errorMessage) => {
+      // يمكن تجاهل الأخطاء غير الحرجة
+    }
+  ).catch(err => {
+    scanResultDiv.textContent = "خطأ في تشغيل الكاميرا: " + err.message;
+    scanResultDiv.className = "scan-result show";
+    setTimeout(() => scanResultDiv.className = "scan-result", 3000);
+  });
+
+  document.getElementById('start-scan-btn').style.display = 'none';
+  document.getElementById('stop-scan-btn').style.display = 'block';
+}
+
+function stopScan() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      document.getElementById('start-scan-btn').style.display = 'block';
+      document.getElementById('stop-scan-btn').style.display = 'none';
+      document.getElementById('reader').innerHTML = "";
+    }).catch(err => {
+      console.error("Error stopping scanner:", err);
+    });
+  }
+}
+function handleAttendance(empId) {
+  const employees = JSON.parse(localStorage.getItem("employees") || "{}");
+  const employee = employees[empId];
+  if (!employee) {
+    scanResultDiv.textContent = "❌ الموظف غير مسجل!";
+    scanResultDiv.className = "scan-result show";
+    setTimeout(() => scanResultDiv.className = "scan-result", 3000);
+    return;
+  }
+
+  const now = new Date();
+  const dateKey = now.toISOString().split('T')[0];
+  const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+  // جلب السجلات اليومية
+  let logs = JSON.parse(localStorage.getItem("attendance") || "{}");
+  if (!logs[dateKey]) logs[dateKey] = {};
+
+  const todayLogs = logs[dateKey];
+  const existing = todayLogs[empId];
+
+  // تحديد الحالة
+  const startMin = timeToMinutes(employee.startTime);
+  const endMin = timeToMinutes(employee.endTime);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  let status;
+  if (!existing) {
+    // أول مسح = حضور
+    if (nowMin < startMin - 30) {
+      status = "مبكر جدًا";
+    } else if (nowMin <= startMin + 15) {
+      status = "حاضر";
+    } else if (nowMin <= endMin) {
+      status = "متأخر";
+    } else {
+      status = "غائب (بعد الدوام)";
+    }
+  } else {
+    // ثاني مسح = انصراف
+    status = "انصراف";
+  }
+
+  todayLogs[empId] = {
+    name: employee.firstName + " " + employee.lastName,
+    time: timeStr,
+    status: status,
+    timestamp: now.getTime()
+  };
+
+  logs[dateKey] = todayLogs;
+  localStorage.setItem("attendance", JSON.stringify(logs));
+
+  // عرض النتيجة
+  scanResultDiv.textContent = `✅ ${status} لـ ${employee.firstName} (${timeStr})`;
+  scanResultDiv.className = "scan-result show";
+  setTimeout(() => scanResultDiv.className = "scan-result", 3000);
+
+  // تحديث لوحة التقارير إذا كانت مفتوحة
+  if (currentTab === 'reports') loadReports();
+}
+
+function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+    }
 
   // تحديث التقارير
   if (currentTab === 'reports') loadReports();
@@ -202,6 +302,8 @@ document.getElementById('filter-employee').addEventListener('change', loadReport
 // ==========================
 // تهيئة أولية
 // ==========================
+document.getElementById('start-scan-btn').addEventListener('click', startScan);
+document.getElementById('stop-scan-btn').addEventListener('click', stopScan);
 window.onload = () => {
   switchTab('scan');
 };
