@@ -3,53 +3,114 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>نظام تسجيل الحضور</title>
+  <title>نظام الحضور والانصراف</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>نظام تسجيل الحضور</h1>
-    <nav>
-      <button onclick="showSection('scanner')">المسح</button>
-      <button onclick="showSection('dashboard')">لوحة التحكم</button>
-      <button onclick="showSection('employees')">الموظفين</button>
+  <div class="container">
+    <header>
+      <h1>نظام الحضور والانصراف</h1>
+      <p>نظام متكامل لإدارة حضور الموظفين باستخدام QR Code</p>
+    </header>
+
+    <!-- شريط التنقل -->
+    <nav class="nav-tabs">
+      <button id="tab-scan" class="tab active" data-tab="scan">مسح QR 📷</button>
+      <button id="tab-employees" class="tab" data-tab="employees">الموظفين 👥</button>
+      <button id="tab-reports" class="tab" data-tab="reports">التقارير 📊</button>
     </nav>
-  </header>
 
-  <!-- قسم المسح -->
-  <section id="scanner" class="section active">
-    <h2>مسح رمز QR</h2>
-    <div id="reader"></div>
-    <button id="start-scan">بدء المسح</button>
-    <button id="stop-scan" disabled>إيقاف المسح</button>
-    <div id="scan-result"></div>
-  </section>
+    <!-- قسم المسح -->
+    <section id="scan-section" class="section active">
+      <div class="card scan-card">
+        <h2>مسح رمز QR</h2>
+        <button id="start-scan-btn" class="btn-primary">بدء المسح</button>
+        <div id="scan-result" class="scan-result"></div>
+      </div>
+    </section>
 
-  <!-- لوحة التحكم -->
-  <section id="dashboard" class="section">
-    <h2>سجل الحضور اليوم</h2>
-    <div>
-      <label>اختر تاريخ: <input type="date" id="filter-date" /></label>
-      <button onclick="exportToCSV()">تصدير إلى CSV</button>
-    </div>
-    <table id="attendance-table">
-      <thead>
-        <tr>
-          <th>الاسم</th>
-          <th>الوقت</th>
-          <th>الحالة</th>
-        </tr>
-      </thead>
-      <tbody id="attendance-body"></tbody>
-    </table>
-  </section>
+    <!-- قسم الموظفين -->
+    <section id="employees-section" class="section">
+      <div class="card employees-card">
+        <div class="card-header">
+          <h2>إدارة الموظفين 👥</h2>
+          <button id="add-employee-btn" class="btn-primary">إضافة موظف +</button>
+        </div>
+        <div id="employees-list" class="employees-grid"></div>
+      </div>
+    </section>
 
-  <!-- إدارة الموظفين -->
-  <section id="employees" class="section">
-    <h2>إدارة الموظفين</h2>
-    <button id="add-employee-btn">إضافة موظف</button>
-    <div id="employees-list"></div>
-  </section>
+    <!-- قسم التقارير -->
+    <section id="reports-section" class="section">
+      <div class="card reports-card">
+        <div class="card-header">
+          <h2>لوحة الحضور والانصراف 👥</h2>
+        </div>
+
+        <div class="stats-cards">
+          <div class="stat-card absent">
+            <span class="icon">❌</span>
+            <div>
+              <span class="count" id="absent-count">0</span>
+              <span class="label">غائب</span>
+            </div>
+          </div>
+          <div class="stat-card late">
+            <span class="icon">⏱️</span>
+            <div>
+              <span class="count" id="late-count">0</span>
+              <span class="label">متأخر</span>
+            </div>
+          </div>
+          <div class="stat-card present">
+            <span class="icon">✅</span>
+            <div>
+              <span class="count" id="present-count">0</span>
+              <span class="label">حاضر</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div>
+            <label>الحالة:</label>
+            <select id="filter-status">
+              <option value="all">الكل</option>
+              <option value="present">حاضر</option>
+              <option value="late">متأخر</option>
+              <option value="absent">غائب</option>
+            </select>
+          </div>
+          <div>
+            <label>الموظف:</label>
+            <select id="filter-employee">
+              <option value="all">الكل</option>
+            </select>
+          </div>
+          <div>
+            <label>التاريخ:</label>
+            <input type="date" id="filter-date" value="2025-02-10" />
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>الموظف</th>
+                <th>الحالة</th>
+                <th>الوقت</th>
+                <th>التاريخ</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body">
+              <tr><td colspan="4" style="text-align:center;">لا توجد سجلات</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <!-- نافذة إضافة موظف -->
   <div id="employee-modal" class="modal">
@@ -57,16 +118,16 @@
       <span class="close">&times;</span>
       <h3>إضافة موظف جديد</h3>
       <form id="employee-form">
-        <input type="text" id="emp-id" placeholder="كود الموظف (فريد)" required />
+        <input type="text" id="emp-id" placeholder="كود الموظف" required />
         <input type="text" id="first-name" placeholder="الاسم الأول" required />
         <input type="text" id="last-name" placeholder="اسم العائلة" required />
-        <input type="date" id="dob" />
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
         <input type="tel" id="phone" placeholder="رقم الهاتف" />
-        <input type="text" id="position" placeholder="المنصب" />
+        <input type="date" id="dob" placeholder="تاريخ الميلاد" />
         <input type="time" id="start-time" value="07:00" required />
         <input type="time" id="end-time" value="15:00" required />
-        <button type="submit">حفظ</button>
-        <button type="button" class="cancel">إلغاء</button>
+        <button type="submit" class="btn-primary">حفظ</button>
+        <button type="button" class="btn-cancel">إلغاء</button>
       </form>
     </div>
   </div>
@@ -77,13 +138,11 @@
       <span class="close">&times;</span>
       <h3>رمز QR</h3>
       <div id="qr-code-container"></div>
-      <button id="download-qr">تحميل الرمز</button>
+      <button id="download-qr" class="btn-primary">تحميل الرمز</button>
     </div>
   </div>
 
-  <!-- مكتبات خارجية -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
