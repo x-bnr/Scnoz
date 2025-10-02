@@ -28,7 +28,16 @@
         <div id="scan-result" class="scan-result"></div>
       </div>
     </section>
+    <!-- مكتبة QR Code -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+<!-- مكتبة مسح QR عبر الكاميرا -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- داخل قسم المسح -->
+<div id="reader" style="width: 100%; max-width: 300px; margin: 20px auto;"></div>
+<button id="stop-scan-btn" class="btn-primary" style="display:none;">إيقاف المسح</button>
+   
     <!-- قسم الموظفين -->
     <section id="employees-section" class="section">
       <div class="card employees-card">
