@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>بطاقة العامل</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card">
+    <img id="worker-img" src="https://via.placeholder.com/150" alt="صورة العامل" />
+    <h2 id="name">أحمد محمد</h2>
+    <p><strong>تاريخ الازدياد:</strong> <span id="dob">1990-05-15</span></p>
+    <p><strong>رقم الهاتف:</strong> <span id="phone">0612345678</span></p>
+    <p><strong>المهنة:</strong> <span id="job">فني صيانة</span></p>
+    <p><strong>توقيت العمل:</strong> 7:00 صباحًا – 3:00 مساءً</p>
+    <div id="qrcode"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    // بيانات العامل (يمكنك تعديلها لكل عامل)
+    const workerData = {
+      id: "W12345",
+      name: "أحمد محمد",
+      dob: "1990-05-15",
+      phone: "0612345678",
+      job: "فني صيانة"
+    };
+
+    document.getElementById("name").textContent = workerData.name;
+    document.getElementById("dob").textContent = workerData.dob;
+    document.getElementById("phone").textContent = workerData.phone;
+    document.getElementById("job").textContent = workerData.job;
+
+    // إنشاء QR Code يحتوي على بيانات العامل بصيغة JSON
+    const qrData = JSON.stringify(workerData);
+    new QRCode(document.getElementById("qrcode"), {
+      text: qrData,
+      width: 128,
+      height: 128
+    });
+  </script>
+</body>
+</html>
