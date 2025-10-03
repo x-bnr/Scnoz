@@ -65,6 +65,7 @@ function showScanResult(msg, type = "success") {
 }
 
 // معالجة الحضور
+
 function handleAttendance(empId) {
   const employees = JSON.parse(localStorage.getItem("employees") || "{}");
   const emp = employees[empId];
@@ -81,35 +82,30 @@ function handleAttendance(empId) {
   if (!logs[dateKey]) logs[dateKey] = {};
 
   const todayLogs = logs[dateKey];
-  const existing = todayLogs[empId];
+  const existing = todayLogs[empId] || {};
 
-  const startMin = timeToMinutes(emp.startTime);
-  const endMin = timeToMinutes(emp.endTime);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-
-  let status;
-  if (!existing) {
-    if (nowMin < startMin - 30) status = "مبكر جدًا";
-    else if (nowMin <= startMin + 15) status = "حاضر";
-    else if (nowMin <= endMin) status = "متأخر";
-    else status = "غائب";
+  if (!existing.entryTime) {
+    // أول مسح = دخول
+    todayLogs[empId] = {
+      entryTime: timeStr,
+      exitTime: null
+    };
+    showScanResult(`✅ تم تسجيل دخول ${emp.firstName} (${timeStr})`);
+  } else if (!existing.exitTime) {
+    // ثاني مسح = انصراف
+    todayLogs[empId].exitTime = timeStr;
+    showScanResult(`✅ تم تسجيل انصراف ${emp.firstName} (${timeStr})`);
   } else {
-    status = "انصراف";
+    // مسح ثالث → تحديث الانصراف
+    todayLogs[empId].exitTime = timeStr;
+    showScanResult(`🔄 تم تحديث انصراف ${emp.firstName}`);
   }
-
-  todayLogs[empId] = {
-    name: emp.firstName + " " + emp.lastName,
-    time: timeStr,
-    status: status
-  };
 
   logs[dateKey] = todayLogs;
   localStorage.setItem("attendance", JSON.stringify(logs));
 
-  showScanResult(`✅ ${status} لـ ${emp.firstName} (${timeStr})`);
   if (currentTab === 'dashboard') loadDashboard();
 }
-
 function timeToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
@@ -121,31 +117,49 @@ function loadDashboard() {
   const logs = JSON.parse(localStorage.getItem("attendance") || "{}");
   const todayLogs = logs[dateKey] || {};
 
-  let present = 0, late = 0, absent = 0;
-  Object.values(todayLogs).forEach(log => {
-    if (log.status === "حاضر") present++;
-    else if (log.status === "متأخر") late++;
-    else if (log.status === "غائب") absent++;
-  });
-
-  document.getElementById('present-count').textContent = present;
-  document.getElementById('late-count').textContent = late;
-  document.getElementById('absent-count').textContent = absent;
-
+  const employees = JSON.parse(localStorage.getItem("employees") || "{}");
   const tbody = document.getElementById('attendance-body');
   tbody.innerHTML = "";
 
-  if (Object.keys(todayLogs).length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">لا توجد سجلات اليوم</td></tr>`;
-    return;
-  }
+  let presentCount = 0, lateCount = 0, absentCount = 0;
 
-  Object.values(todayLogs).forEach(log => {
+  // التكرار على جميع الموظفين (ليس فقط من سجلوا)
+  Object.values(employees).forEach(emp => {
+    const log = todayLogs[emp.id] || {};
+    let status = "غائب";
+    let entryTime = "—";
+    let exitTime = "—";
+
+    if (log.entryTime) {
+      entryTime = log.entryTime;
+      const entryMin = timeToMinutes(log.entryTime);
+      const startMin = timeToMinutes(emp.startTime || "07:00");
+      if (entryMin <= startMin + 15) {
+        status = "حاضر";
+        presentCount++;
+      } else {
+        status = "متأخر";
+        lateCount++;
+      }
+    }
+
+    if (log.exitTime) {
+      exitTime = log.exitTime;
+    }
+
+    if (status === "غائب") absentCount++;
+
     const row = tbody.insertRow();
-    row.insertCell(0).textContent = log.name;
-    row.insertCell(1).textContent = log.status;
-    row.insertCell(2).textContent = log.time;
+    row.insertCell(0).textContent = emp.firstName + " " + emp.lastName;
+    row.insertCell(1).textContent = status;
+    row.insertCell(2).textContent = entryTime;
+    row.insertCell(3).textContent = exitTime;
   });
+
+  // تحديث الإحصائيات
+  document.getElementById('present-count').textContent = presentCount;
+  document.getElementById('late-count').textContent = lateCount;
+  document.getElementById('absent-count').textContent = absentCount;
 }
 
 // إدارة الموظفين
@@ -239,6 +253,41 @@ document.getElementById('download-qr').addEventListener('click', () => {
     link.click();
   }
 });
+function exportToCSV() {
+  const dateKey = new Date().toISOString().split('T')[0];
+  const logs = JSON.parse(localStorage.getItem("attendance") || "{}");
+  const todayLogs = logs[dateKey] || {};
+  const employees = JSON.parse(localStorage.getItem("employees") || "{}");
+
+  let csv = "الاسم,الحالة,وقت الدخول,وقت الانصراف\n";
+
+  Object.values(employees).forEach(emp => {
+    const log = todayLogs[emp.id] || {};
+    let status = "غائب";
+    const entry = log.entryTime || "—";
+    const exit = log.exitTime || "—";
+
+    if (log.entryTime) {
+      const entryMin = timeToMinutes(log.entryTime);
+      const startMin = timeToMinutes(emp.startTime || "07:00");
+      status = entryMin <= startMin + 15 ? "حاضر" : "متأخر";
+    }
+
+    const name = `${emp.firstName} ${emp.lastName}`;
+    csv += `"${name}","${status}","${entry}","${exit}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `تقرير_الحضور_${dateKey}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ربط الزر
+document.getElementById('export-btn').addEventListener('click', exportToCSV);
 
 // ربط الأزرار
 document.getElementById('start-scan-btn').addEventListener('click', startScan);
@@ -248,3 +297,4 @@ document.getElementById('stop-scan-btn').addEventListener('click', stopScan);
 window.onload = () => {
   switchTab('scan');
 };
+
